@@ -1,0 +1,221 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon pooled connection (app ke liye)
+  directUrl = env("DIRECT_URL")   // Neon direct connection (migrations ke liye)
+}
+
+// ───────────── Enums ─────────────
+
+enum Role {
+  SUPER_ADMIN
+  FIELD_WORKER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Relationship {
+  HEAD
+  SPOUSE
+  CHILD
+  PARENT
+  SIBLING
+  OTHER
+}
+
+enum SyncAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum SyncEntity {
+  HOUSEHOLD
+  MEMBER
+  ASSESSMENT
+}
+
+enum SyncResult {
+  APPLIED   // change server par save ho gayi
+  CONFLICT  // version mismatch, server wala version jeeta
+  REJECTED  // validation / permission masla
+}
+
+enum ActivityType {
+  URGENT_ASSESSMENT
+}
+
+// ───────────── Users & Auth ─────────────
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  password     String
+  refreshToken String?
+  role         Role
+  isActive     Boolean  @default(true)
+
+  // Field worker ek waqt mein sirf ek area mein assign hota hai
+  areaId String? @db.Uuid
+  area   Area?   @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  households  Household[]
+  assessments HealthAssessment[]
+  syncOps     SyncOperation[]
+
+  @@index([role, isActive])
+  @@index([areaId])
+}
+
+// ───────────── Areas ─────────────
+
+model Area {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  code        String   @unique // e.g. "KHI-01"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workers    User[]
+  households Household[]
+}
+
+// ───────────── Households ─────────────
+// id UUID hai taake mobile offline mein khud bana sake.
+// version har update par barhta hai (conflict detection).
+// deletedAt = soft delete (tombstone).
+
+model Household {
+  id        String  @id @default(uuid()) @db.Uuid
+  code      String  @unique // household identifier
+  address   String
+  latitude  Float?
+  longitude Float?
+
+  areaId      String @db.Uuid
+  createdById String @db.Uuid
+
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  area      Area  @relation(fields: [areaId], references: [id])
+  createdBy User  @relation(fields: [createdById], references: [id])
+  members   HouseholdMember[]
+
+  @@index([areaId, updatedAt]) // sync pull: "meri area mein X ke baad ki changes"
+  @@index([createdById])
+  @@index([deletedAt])
+}
+
+// ───────────── Members ─────────────
+
+model HouseholdMember {
+  id           String       @id @default(uuid()) @db.Uuid
+  householdId  String       @db.Uuid
+  name         String
+  age          Int
+  gender       Gender
+  relationship Relationship
+
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  household   Household          @relation(fields: [householdId], references: [id])
+  assessments HealthAssessment[]
+
+  @@index([householdId, updatedAt])
+  @@index([deletedAt])
+}
+
+// ───────────── Health Assessments ─────────────
+
+model HealthAssessment {
+  id         String @id @default(uuid()) @db.Uuid
+  memberId   String @db.Uuid
+  recordedBy String @db.Uuid
+
+  temperature             Float? // °C
+  hasFever                Boolean @default(false)
+  hasCough                Boolean @default(false)
+  hasBreathingDifficulty  Boolean @default(false)
+  systolicBp              Int?
+  diastolicBp             Int?
+  notes                   String?
+
+  // Urgent: temperature >= 39 YA breathing difficulty YA manual flag
+  flaggedForReview Boolean @default(false) // field worker ka manual toggle
+  isUrgent         Boolean @default(false) // server compute karta hai
+
+  assessedAt DateTime  @default(now())
+  version    Int       @default(1)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  member   HouseholdMember @relation(fields: [memberId], references: [id])
+  user     User            @relation(fields: [recordedBy], references: [id])
+  activity ActivityLog[]
+
+  @@index([memberId, updatedAt])
+  @@index([recordedBy])
+  @@index([isUrgent])
+  @@index([deletedAt])
+}
+
+// ───────────── Sync idempotency ─────────────
+// Mobile har queued change ke saath unique opId bhejta hai.
+// Wahi opId dobara aaye to stored result return hota hai, change dobara apply nahi hoti.
+
+model SyncOperation {
+  id         String     @id @default(uuid()) @db.Uuid
+  opId       String     @db.Uuid // device par generate hota hai
+  userId     String     @db.Uuid
+  entityType SyncEntity
+  entityId   String     @db.Uuid
+  action     SyncAction
+  result     SyncResult
+  response   Json?
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, opId])
+  @@index([entityType, entityId])
+}
+
+// ───────────── Admin activity (BullMQ output) ─────────────
+// Urgent assessment par worker yahan row likhta hai.
+// @@unique duplicate job processing rokta hai.
+
+model ActivityLog {
+  id           String       @id @default(uuid()) @db.Uuid
+  type         ActivityType
+  message      String
+  assessmentId String?      @db.Uuid
+  readAt       DateTime?
+  createdAt    DateTime     @default(now())
+
+  assessment HealthAssessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  @@unique([type, assessmentId])
+  @@index([readAt, createdAt])
+}

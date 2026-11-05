@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "./theme/tokens.css";
+
+@theme {
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-primary: var(--pd-primary);
+  --color-on-primary: var(--pd-on-primary);
+  --color-primary-container: var(--pd-primary-container);
+  --color-on-primary-container: var(--pd-on-primary-container);
+  --color-primary-dark: var(--pd-primary-dark);
+  --color-inverse-primary: var(--pd-inverse-primary);
+
+  --color-secondary: var(--pd-secondary);
+  --color-on-secondary: var(--pd-on-secondary);
+  --color-secondary-dark: var(--pd-secondary-dark);
+
+  --color-tertiary: var(--pd-tertiary);
+  --color-on-tertiary: var(--pd-on-tertiary);
+
+  --color-surface: var(--pd-surface);
+  --color-surface-container-lowest: var(--pd-surface-container-lowest);
+  --color-surface-container-low: var(--pd-surface-container-low);
+  --color-surface-container: var(--pd-surface-container);
+  --color-surface-container-high: var(--pd-surface-container-high);
+  --color-on-surface: var(--pd-on-surface);
+  --color-on-surface-variant: var(--pd-on-surface-variant);
+  --color-background: var(--pd-background);
+
+  --color-sidebar: var(--pd-sidebar);
+  --color-sidebar-border: var(--pd-sidebar-border);
+  --color-sidebar-text: var(--pd-sidebar-text);
+  --color-sidebar-text-active: var(--pd-sidebar-text-active);
+  --color-sidebar-hover: var(--pd-sidebar-hover);
+  --color-sidebar-active-bg: var(--pd-sidebar-active-bg);
+
+  --color-outline: var(--pd-outline);
+  --color-outline-variant: var(--pd-outline-variant);
+  --color-border-card: var(--pd-border-card);
+
+  --color-error: var(--pd-error);
+  --color-on-error: var(--pd-on-error);
+  --color-error-container: var(--pd-error-container);
+  --color-on-error-container: var(--pd-on-error-container);
+  --color-success: var(--pd-success);
+  --color-warning: var(--pd-warning);
+
+  --radius-sm: var(--pd-radius-sm);
+  --radius-md: var(--pd-radius-md);
+  --radius-lg: var(--pd-radius-lg);
+  --radius-xl: var(--pd-radius-xl);
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+  background-color: var(--pd-background);
+  color: var(--pd-on-surface);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"],
+.MuiButtonBase-root {
+  cursor: pointer;
+}
+
+code {
+  font-family: var(--font-mono);
+}

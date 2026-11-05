@@ -1,0 +1,16 @@
+export const HouseholdLabels = {
+  CREATED: "Household created successfully",
+  LISTED: "Households fetched successfully",
+  FETCHED: "Household fetched successfully",
+  UPDATED: "Household updated successfully",
+  DELETED: "Household deleted successfully",
+  NOT_FOUND: "Household not found",
+  CODE_EXISTS: "A household with this code already exists",
+  AREA_REQUIRED: "Field worker must be assigned to an area before creating households",
+  AREA_NOT_FOUND: "Area not found",
+  FORBIDDEN_AREA: "You can only access households in your assigned area",
+  AREA_NOT_ASSIGNED: "This area is not assigned to the field worker",
+  FIELD_WORKER_REQUIRED: "fieldWorkerId is required when Super Admin creates a household",
+  FIELD_WORKER_NOT_FOUND: "Field worker not found",
+  ALREADY_DELETED: "Household is already deleted",
+} as const;
